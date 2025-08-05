@@ -14,6 +14,7 @@ import { AppProvider } from '@/components/AppProvider';
 import { NWCProvider } from '@/contexts/NWCContext';
 import { AppConfig } from '@/contexts/AppContext';
 import AppRouter from './AppRouter';
+import { siteConfig } from '@/lib/config';
 
 const head = createHead({
   plugins: [
@@ -33,7 +34,7 @@ const queryClient = new QueryClient({
 
 const defaultConfig: AppConfig = {
   theme: "light",
-  relayUrl: "wss://relay.primal.net",
+  relayUrl: siteConfig.defaultRelays[0], // Use first configured relay as default
 };
 
 const presetRelays = [
