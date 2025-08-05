@@ -14,7 +14,8 @@ export const POST_REMOVAL_KIND = 4551;
 export const JOIN_REQUEST_KIND = 4552;
 export const LEAVE_REQUEST_KIND = 4553;
 export const CLOSE_REPORT_KIND = 4554;
-export const GROUP_POST_KIND = 11;
+// Per NIP.md: "All group discussions in Chorus use Kind 1111 (NIP-22 Comments)"
+export const GROUP_POST_KIND = 1111; // Changed from 11 to 1111 per NIP.md
 export const GROUP_POST_REPLY_KIND = 1111;
 
 // Community metadata interface
@@ -165,12 +166,22 @@ export function extractCommunityIdFromPost(event: NostrEvent): string | null {
 }
 
 // Create tags for posting to community
-export function createCommunityPostTags(communityId: string, relay?: string): string[][] {
+export function createCommunityPostTags(communityId: string, _relay?: string): string[][] {
   const tags: string[][] = [];
   
-  // Add community a-tag
-  const aTag = createCommunityATag(communityId, relay);
-  tags.push(aTag);
+  // Extract community creator pubkey from communityId (format: "34550:pubkey:identifier")
+  const communityCreatorPubkey = communityId.split(':')[1];
+  
+  // NIP-22 compliant tags for top-level community posts per NIP.md lines 254-260
+  // Root scope tags (uppercase)
+  tags.push(['A', communityId]); // Root scope: the community
+  tags.push(['K', '34550']);     // Root kind: community
+  tags.push(['P', communityCreatorPubkey]); // Root author: community creator
+  
+  // Parent scope tags (lowercase) - same as root for top-level posts
+  tags.push(['a', communityId]); // Parent scope: same as root
+  tags.push(['k', '34550']);     // Parent kind: community  
+  tags.push(['p', communityCreatorPubkey]); // Parent author: community creator
   
   return tags;
 }
@@ -180,19 +191,23 @@ export function createCommunityReplyTags(
   communityId: string,
   parentEventId: string,
   parentAuthorPubkey: string,
-  relay?: string
+  _relay?: string
 ): string[][] {
   const tags: string[][] = [];
   
-  // Add community a-tag
-  const aTag = createCommunityATag(communityId, relay);
-  tags.push(aTag);
+  // Extract community creator pubkey from communityId (format: "34550:pubkey:identifier")
+  const communityCreatorPubkey = communityId.split(':')[1];
   
-  // Add parent event reference
-  tags.push(['e', parentEventId]);
+  // NIP-22 compliant tags for community replies per NIP.md lines 283-289
+  // Root scope tags (uppercase) - always point to the community
+  tags.push(['A', communityId]); // Root scope: the community
+  tags.push(['K', '34550']);     // Root kind: community
+  tags.push(['P', communityCreatorPubkey]); // Root author: community creator
   
-  // Add parent author reference
-  tags.push(['p', parentAuthorPubkey]);
+  // Parent event tags (lowercase) - point to the specific comment being replied to
+  tags.push(['e', parentEventId]); // Parent event: the comment being replied to
+  tags.push(['k', '1111']);       // Parent kind: comment (Kind 1111)
+  tags.push(['p', parentAuthorPubkey]); // Parent author: comment author
   
   return tags;
 }

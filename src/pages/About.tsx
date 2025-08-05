@@ -48,7 +48,7 @@ function useAboutContent() {
         throw error;
       }
     },
-    enabled: !!siteConfig.aboutNaddr,
+    enabled: !!siteConfig.aboutNaddr
   });
 }
 

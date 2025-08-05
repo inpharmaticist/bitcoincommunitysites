@@ -37,12 +37,23 @@ const defaultConfig: AppConfig = {
   relayUrl: siteConfig.defaultRelays[0], // Use first configured relay as default
 };
 
-const presetRelays = [
+// Create preset relays including configured ones
+const configuredRelays = siteConfig.defaultRelays.map(url => {
+  const domain = url.replace(/^wss?:\/\//, '');
+  const name = domain === 'relay.nostr.band' ? 'Nostr.Band' :
+              domain === 'relay.damus.io' ? 'Damus' :
+              domain === 'relay.primal.net' ? 'Primal' :
+              domain === 'relay.chorus.community' ? 'Chorus' :
+              domain === 'relay.lexingtonbitcoin.org' ? 'Lexington Bitcoin' :
+              domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
+  return { url, name };
+});
+
+const fallbackRelays = [
   { url: 'wss://ditto.pub/relay', name: 'Ditto' },
-  { url: 'wss://relay.nostr.band', name: 'Nostr.Band' },
-  { url: 'wss://relay.damus.io', name: 'Damus' },
-  { url: 'wss://relay.primal.net', name: 'Primal' },
 ];
+
+const presetRelays = [...configuredRelays, ...fallbackRelays];
 
 export function App() {
   return (

@@ -15,12 +15,14 @@ export interface SiteConfig {
   aboutNaddr?: string;
   blogAuthors?: string[]; // Additional npubs for blog authors
   communityId?: string; // NIP-72 community ID for social feature
+  welcomeText: string; // Customizable welcome text for CTA section
   
   // Feature flags
   enableBlog: boolean;
   enableEvents: boolean;
   enableRsvp: boolean;
   enableSocial: boolean;
+  enableDonationPage: boolean;
   
   // Feature box content
   featureBoxes: {
@@ -35,9 +37,10 @@ export interface SiteConfig {
 
 // Default relays if none specified
 const DEFAULT_RELAYS = [
-  'wss://relay.damus.io',
   'wss://relay.nostr.band',
-  'wss://relay.primal.net'
+  'wss://relay.damus.io',
+  'wss://relay.primal.net',
+  'wss://relay.chorus.community'
 ];
 
 // Parse boolean environment variables
@@ -94,10 +97,12 @@ export function loadSiteConfig(): SiteConfig {
     aboutNaddr: import.meta.env.VITE_ABOUT_NADDR || undefined,
     blogAuthors: parseBlogAuthors(import.meta.env.VITE_BLOG_AUTHORS),
     communityId: import.meta.env.VITE_COMMUNITY_ID || undefined,
+    welcomeText: import.meta.env.VITE_WELCOME_TEXT || "Whether you're new to Bitcoin or a seasoned veteran, you'll find a welcoming community at our gatherings.",
     enableBlog: parseBoolean(import.meta.env.VITE_ENABLE_BLOG, true),
     enableEvents: parseBoolean(import.meta.env.VITE_ENABLE_EVENTS, true),
     enableRsvp: parseBoolean(import.meta.env.VITE_ENABLE_RSVP, true),
     enableSocial: parseBoolean(import.meta.env.VITE_ENABLE_SOCIAL, false),
+    enableDonationPage: parseBoolean(import.meta.env.VITE_ENABLE_DONATION_PAGE, false),
     featureBoxes: {
       box1: {
         title: import.meta.env.VITE_FEATURE_BOX_1_TITLE || 'Events',

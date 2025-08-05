@@ -1,7 +1,8 @@
 // NOTE: This file is stable and usually should not be modified.
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
-import { ChevronDown, LogOut, UserIcon, UserPlus, Wallet } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, LogOut, UserIcon, UserPlus, Wallet, Settings } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +13,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar.tsx';
 import { RelaySelector } from '@/components/RelaySelector';
 import { WalletModal } from '@/components/WalletModal';
+import { EditProfileDialog } from './EditProfileDialog';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { genUserName } from '@/lib/genUserName';
 
@@ -21,6 +23,7 @@ interface AccountSwitcherProps {
 
 export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
   const { currentUser, otherUsers, setLogin, removeLogin } = useLoggedInAccounts();
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
 
   if (!currentUser) return null;
 
@@ -64,6 +67,13 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => setEditProfileOpen(true)}
+          className='flex items-center gap-2 cursor-pointer p-2 rounded-md'
+        >
+          <Settings className='w-4 h-4' />
+          <span>Edit Profile</span>
+        </DropdownMenuItem>
         <WalletModal>
           <DropdownMenuItem
             className='flex items-center gap-2 cursor-pointer p-2 rounded-md'
@@ -88,6 +98,11 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
           <span>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
+
+      <EditProfileDialog
+        isOpen={editProfileOpen}
+        onClose={() => setEditProfileOpen(false)}
+      />
     </DropdownMenu>
   );
 }

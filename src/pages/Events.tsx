@@ -135,7 +135,7 @@ export default function Events() {
           <div className="max-w-4xl mx-auto">
             <h1 className="text-4xl font-bold mb-2">Upcoming Events</h1>
             <p className="text-xl text-muted-foreground mb-8">
-              Join us for our Bitcoin meetups and special events
+              Join us for our upcoming meetings and special events
             </p>
 
             {isLoading && (

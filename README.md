@@ -23,10 +23,13 @@ A configurable Bitcoin community website built on Nostr, powered by React and Ta
 - **Dynamic Routing**: SEO-friendly URLs using Nostr naddr identifiers
 
 ### 💬 **Community Social**
-- **NIP-72 Communities**: Optional community discussion pages
-- **Authenticated Access**: Social features only for signed-in users
-- **Threaded Discussions**: Full conversation threading with replies
-- **Community Management**: Join requests and moderation support
+- **NIP-72 Communities**: Full-featured community discussion pages with Chorus extensions
+- **Advanced Moderation**: Complete moderation system with approve/remove/pin/ban capabilities
+- **Auto-Approval Workflow**: Approved members' posts skip moderation queue per NIP.md spec
+- **Threaded Discussions**: NIP-22 compliant comment threading with moderation on all levels
+- **Member Management**: Join/leave requests, approved/declined/banned member lists
+- **Moderator Tools**: Comprehensive moderation interface for community management
+- **Smart Filtering**: Management interface shows only content needing attention
 
 ### 🔐 **Nostr Authentication**
 - **NIP-07 Browser Extension**: Seamless login with Alby, nos2x, etc.
@@ -167,16 +170,18 @@ VITE_DEFAULT_RELAYS=wss://relay.damus.io,wss://relay.nostr.band
 ```
 src/
 ├── components/          # Reusable UI components
-│   ├── ui/             # shadcn/ui component library
-│   ├── auth/           # Authentication components
-│   ├── community/      # NIP-72 community features
-│   └── comments/       # NIP-22 commenting system
+│   ├── ui/             # shadcn/ui component library (48+ components)
+│   ├── auth/           # Authentication components (LoginArea, LoginDialog)
+│   ├── community/      # NIP-72 community features with full moderation
+│   └── comments/       # NIP-22 commenting system with threading
 ├── hooks/              # Custom React hooks
 │   ├── useNostr.ts     # Core Nostr integration
 │   ├── useAuthor.ts    # Profile data fetching
 │   ├── useBlogPosts.ts # Multi-author blog queries
 │   ├── useReactions.ts # NIP-25 reaction system
-│   └── useCommunity*.ts # Community-related hooks
+│   ├── useCommunity*.ts # Community management with auto-approval
+│   ├── useZaps.ts      # Lightning zap functionality
+│   └── useWallet.ts    # WebLN + NWC wallet integration
 ├── pages/              # Route components
 │   ├── Index.tsx       # Homepage
 │   ├── Blog.tsx        # Blog listing page
@@ -186,7 +191,7 @@ src/
 │   └── About.tsx       # About page (if configured)
 ├── lib/                # Utility functions
 │   ├── config.ts       # Environment configuration
-│   ├── community.ts    # NIP-72 utilities
+│   ├── community.ts    # NIP-72 utilities with NIP-22 tag creation
 │   └── utils.ts        # General utilities
 └── contexts/           # React context providers
 ```
@@ -219,16 +224,32 @@ The project includes comprehensive testing:
 
 ## 🌐 Nostr Protocol Integration
 
-This project implements several Nostr Improvement Proposals (NIPs):
+This project implements several Nostr Improvement Proposals (NIPs) with full compliance:
 
+### Core Protocol
 - **NIP-01**: Basic protocol flow and event structure
-- **NIP-07**: Browser extension authentication
-- **NIP-19**: Bech32-encoded identifiers (npub, naddr, etc.)
-- **NIP-22**: Threaded comments with proper threading
+- **NIP-07**: Browser extension authentication  
+- **NIP-09**: Event deletion for post authors
+- **NIP-19**: Bech32-encoded identifiers (npub, naddr, note, nevent)
+
+### Content & Social
+- **NIP-22**: Threaded comments with proper NIP-22 tag structure
 - **NIP-23**: Long-form content for blog posts
-- **NIP-25**: Reactions (likes, dislikes, emoji reactions)
+- **NIP-25**: Reactions (likes, dislikes, emoji reactions) 
 - **NIP-52**: Calendar events for meetup scheduling
-- **NIP-72**: Moderated communities for social features
+
+### Community Features (Full NIP-72 + Chorus Extensions)
+- **NIP-72**: Moderated communities with complete implementation
+- **Chorus NIP-72 Extensions**: Enhanced community management per NIP.md:
+  - **Kind 34551**: Approved members list with auto-approval workflow
+  - **Kind 34552**: Declined members list  
+  - **Kind 34553**: Banned members list
+  - **Kind 34554**: Pinned posts list
+  - **Kind 4550**: Post approval events
+  - **Kind 4551**: Post removal events  
+  - **Kind 4552**: Join request events
+  - **Kind 4553**: Leave request events
+  - **Kind 1111**: NIP-22 compliant threaded community discussions
 
 ### Relay Usage
 

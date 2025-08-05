@@ -2,6 +2,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MessageSquare } from 'lucide-react';
 import { useCommunityPosts } from '@/hooks/useCommunityPosts';
+import { useCommunityPosts as useModerationPosts, usePinnedPosts, useMemberLists } from '@/hooks/useCommunityManagement';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useCommunity } from '@/hooks/useCommunity';
+import { isModerator } from '@/lib/community';
 import { CommunityPost } from './CommunityPost';
 import { RelaySelector } from '@/components/RelaySelector';
 
@@ -10,7 +14,55 @@ interface CommunityFeedProps {
 }
 
 export function CommunityFeed({ communityId }: CommunityFeedProps) {
+  const { user } = useCurrentUser();
+  const { data: community } = useCommunity(communityId);
   const { data: posts, isLoading, error } = useCommunityPosts(communityId, 30);
+  const { data: moderationPosts } = useModerationPosts(communityId);
+  const { data: pinnedPosts } = usePinnedPosts(communityId);
+  const { data: memberLists } = useMemberLists(communityId);
+  
+  // Check if current user is a moderator
+  const isUserModerator = user && community ? isModerator(user.pubkey, community) : false;
+  
+  // Create a map of moderation status for posts
+  const moderationStatusMap = new Map();
+  if (moderationPosts) {
+    moderationPosts.forEach(post => {
+      moderationStatusMap.set(post.id, {
+        isApproved: post.isApproved,
+        isRemoved: post.isRemoved,
+      });
+    });
+  }
+  
+  // Helper function to check if a post should be considered approved
+  // Per NIP.md line 330: "Comments from users in the approved members list (Kind 34551) 
+  // are automatically considered approved without requiring individual Kind 4550 approval events."
+  const isPostApproved = (post: { id: string; pubkey: string }) => {
+    const moderationStatus = moderationStatusMap.get(post.id);
+    
+    // If explicitly removed, it's not approved
+    if (moderationStatus?.isRemoved) {
+      return false;
+    }
+    
+    // If explicitly approved by moderator, it's approved
+    if (moderationStatus?.isApproved) {
+      return true;
+    }
+    
+    // Auto-approval workflow: check if author is in approved members list
+    if (memberLists?.approved.includes(post.pubkey)) {
+      return true;
+    }
+    
+    // If there's no moderation status and author is not in approved list, 
+    // the post is pending approval (for non-members)
+    return false;
+  };
+  
+  // Create a set of pinned post IDs for quick lookup
+  const pinnedPostIds = new Set(pinnedPosts?.map(p => p.eventId) || []);
 
   if (isLoading) {
     return (
@@ -56,7 +108,20 @@ export function CommunityFeed({ communityId }: CommunityFeedProps) {
     );
   }
 
-  if (!posts || posts.length === 0) {
+  // For empty state, check if we have any content to show
+  const hasContentToShow = () => {
+    if (!posts || posts.length === 0) return false;
+    
+    if (isUserModerator) {
+      // Moderators can see all posts
+      return true;
+    }
+    
+    // Non-moderators can only see approved posts
+    return posts.some(post => isPostApproved(post));
+  };
+
+  if (!posts || !hasContentToShow()) {
     return (
       <div className="space-y-4">
         <Card className="border-dashed">
@@ -85,17 +150,31 @@ export function CommunityFeed({ communityId }: CommunityFeedProps) {
   return (
     <div className="space-y-4">
       {/* Posts Feed */}
-      {posts.map((post) => (
-        <CommunityPost 
-          key={post.id} 
-          event={post} 
-          communityId={communityId}
-          showReplies={true} 
-        />
-      ))}
+      {posts.map((post) => {
+        const moderationStatus = moderationStatusMap.get(post.id);
+        const isPinned = pinnedPostIds.has(post.id);
+        const postApproved = isPostApproved(post);
+        
+        // For non-moderators, hide unapproved posts
+        if (!isUserModerator && !postApproved) {
+          return null;
+        }
+        
+        return (
+          <CommunityPost 
+            key={post.id} 
+            event={post} 
+            communityId={communityId}
+            showReplies={true}
+            isApproved={postApproved}
+            isRemoved={moderationStatus?.isRemoved ?? false}
+            isPinned={isPinned}
+          />
+        );
+      }).filter(Boolean)}
 
       {/* Load More Indicator */}
-      {posts.length >= 30 && (
+      {posts && posts.length >= 30 && (
         <Card className="border-dashed">
           <CardContent className="py-6 text-center">
             <p className="text-sm text-muted-foreground">

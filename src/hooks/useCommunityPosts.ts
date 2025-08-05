@@ -22,17 +22,18 @@ export function useCommunityPosts(
       const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
       
       try {
-        // Query for both regular notes and group posts that reference this community
-        // Use multiple queries to handle both lowercase 'a' and uppercase 'A' tags
+        // Query for community posts per NIP.md lines 344-353
+        // Use uppercase 'A' tags for top-level posts as recommended
         const queries = [
           {
-            kinds: [1, GROUP_POST_KIND], // kind 1 (notes) and kind 11 (group posts)
-            '#a': [communityId],
+            kinds: [GROUP_POST_KIND], // Kind 1111 community posts per NIP.md
+            '#A': [communityId], // Root scope filter (uppercase A)
             limit,
           },
+          // Also query lowercase 'a' for backward compatibility with existing posts
           {
-            kinds: [1, GROUP_POST_KIND], // kind 1 (notes) and kind 11 (group posts)
-            '#A': [communityId],
+            kinds: [GROUP_POST_KIND], // Kind 1111 community posts per NIP.md
+            '#a': [communityId], // Parent scope filter (lowercase a)
             limit,
           }
         ];
@@ -51,7 +52,7 @@ export function useCommunityPosts(
         
         const events = Array.from(eventMap.values());
 
-        // Filter and validate community posts
+        // Filter and validate community posts per NIP.md specification
         const validPosts = events.filter(event => {
           // Validate that the event is properly tagged for the community
           if (!validateCommunityPost(event)) {
@@ -64,7 +65,13 @@ export function useCommunityPosts(
             return false;
           }
           
-          // Exclude replies (events that have 'e' tags referencing other events)
+          // Per NIP.md line 353: filter results where the `k` tag value is "34550" (top-level posts)
+          const parentKind = event.tags.find(([name]) => name === 'k')?.[1];
+          if (parentKind !== '34550') {
+            return false; // Only show top-level posts, not replies
+          }
+          
+          // Double-check: exclude replies (events that have 'e' tags referencing other events)
           const hasEventReference = event.tags.some(([name]) => name === 'e');
           return !hasEventReference;
         });

@@ -13,7 +13,8 @@ const EventPost = lazy(() => import("./pages/EventPost"));
 const Blog = lazy(() => import("./pages/Blog"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
 const About = lazy(() => import("./pages/About"));
-const Social = lazy(() => import("./pages/Social"));
+const Community = lazy(() => import("./pages/Community"));
+const Donate = lazy(() => import("./pages/Donate"));
 
 export function AppRouter() {
   return (
@@ -62,9 +63,17 @@ export function AppRouter() {
         )}
         
         {siteConfig.communityId && (
-          <Route path="/social" element={
+          <Route path="/community" element={
             <Suspense fallback={<div>Loading...</div>}>
-              <Social />
+              <Community />
+            </Suspense>
+          } />
+        )}
+        
+        {siteConfig.enableDonationPage && (
+          <Route path="/donate" element={
+            <Suspense fallback={<div>Loading...</div>}>
+              <Donate />
             </Suspense>
           } />
         )}

@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { LoginArea } from '@/components/auth/LoginArea';
+import { NotificationBell } from '@/components/NotificationBell';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { siteConfig } from '@/lib/config';
@@ -19,21 +20,29 @@ export function Navigation() {
     { path: '/', label: 'Home', enabled: true },
   ];
 
-  if (siteConfig.enableEvents) {
-    navItems.push({ path: '/events', label: 'Events', enabled: true });
-  }
-
-  if (siteConfig.enableBlog) {
-    navItems.push({ path: '/blog', label: 'Blog', enabled: true });
-  }
-
+  // About comes after Home
   if (siteConfig.aboutNaddr) {
     navItems.push({ path: '/about', label: 'About', enabled: true });
   }
 
-  // Show Social tab only for signed-in users when community is configured
+  // Events comes after About
+  if (siteConfig.enableEvents) {
+    navItems.push({ path: '/events', label: 'Events', enabled: true });
+  }
+
+  // Blog comes after Events
+  if (siteConfig.enableBlog) {
+    navItems.push({ path: '/blog', label: 'Blog', enabled: true });
+  }
+
+  // Donate comes after Blog
+  if (siteConfig.enableDonationPage) {
+    navItems.push({ path: '/donate', label: 'Donate', enabled: true });
+  }
+
+  // Community comes last (only for signed-in users when community is configured)
   if (user && siteConfig.communityId) {
-    navItems.push({ path: '/social', label: 'Social', enabled: true });
+    navItems.push({ path: '/community', label: 'Community', enabled: true });
   }
 
   const isActive = (path: string) => {
@@ -61,17 +70,20 @@ export function Navigation() {
                 </Button>
               </Link>
             ))}
+            <NotificationBell />
             <LoginArea className="ml-4" />
           </div>
 
           {/* Mobile Menu Button */}
-          <button
-            className="md:hidden"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
+          <div className="md:hidden flex items-center gap-2">
+            <NotificationBell />
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Navigation */}

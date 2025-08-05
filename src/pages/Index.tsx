@@ -102,7 +102,7 @@ export default function Index() {
               <CardContent className="p-8">
                 <h2 className="text-3xl font-bold mb-4">Ready to Join Us?</h2>
                 <p className="text-lg mb-6 opacity-90">
-                  Whether you're new to Bitcoin or a seasoned veteran, you'll find a welcoming community at our gatherings.
+                  {siteConfig.welcomeText}
                 </p>
                 <Link to="/events">
                   <Button size="lg" variant="secondary">
