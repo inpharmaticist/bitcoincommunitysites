@@ -16,9 +16,14 @@ const About = lazy(() => import("./pages/About"));
 const Community = lazy(() => import("./pages/Community"));
 const Donate = lazy(() => import("./pages/Donate"));
 
+// Get base path from environment variable, default to /bitcoincommunitysites/
+const basePath = import.meta.env.VITE_BASE_PATH || '/bitcoincommunitysites/';
+// Remove trailing slash for React Router basename
+const basename = basePath === '/' ? undefined : basePath.replace(/\/$/, '');
+
 export function AppRouter() {
   return (
-    <BrowserRouter basename="/bitcoincommunitysites">
+    <BrowserRouter basename={basename}>
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<Index />} />

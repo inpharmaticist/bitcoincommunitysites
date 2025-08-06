@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
-  base: '/bitcoincommunitysites/',
+  base: process.env.VITE_BASE_PATH || '/bitcoincommunitysites/',
   server: {
     host: "::",
     port: 8080,
