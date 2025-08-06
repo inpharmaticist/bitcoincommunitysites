@@ -14,7 +14,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { CommentsSection } from '@/components/comments/CommentsSection';
 import { genUserName } from '@/lib/genUserName';
 import { siteConfig } from '@/lib/config';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 interface EventPageProps {
   kind: number;
@@ -28,8 +28,15 @@ interface RSVP {
   note?: string;
 }
 
-function RSVPButton({ currentRSVP, onRSVP }: { 
+function RSVPButton({ 
+  currentRSVP, 
+  optimisticStatus,
+  isSubmitting,
+  onRSVP 
+}: { 
   currentRSVP: RSVP | null; 
+  optimisticStatus: 'accepted' | 'declined' | 'tentative' | null;
+  isSubmitting: boolean;
   onRSVP: (status: 'accepted' | 'declined' | 'tentative') => void;
 }) {
   const { user } = useCurrentUser();
@@ -42,7 +49,8 @@ function RSVPButton({ currentRSVP, onRSVP }: {
     );
   }
 
-  const currentStatus = currentRSVP?.status;
+  // Use optimistic status if available, otherwise fall back to server data
+  const currentStatus = optimisticStatus || currentRSVP?.status;
 
   return (
     <div className="flex gap-2">
@@ -51,6 +59,7 @@ function RSVPButton({ currentRSVP, onRSVP }: {
         variant={currentStatus === 'accepted' ? 'default' : 'outline'}
         size="sm"
         className="flex items-center gap-2"
+        disabled={isSubmitting}
       >
         <CheckCircle className="h-4 w-4" />
         Going
@@ -60,6 +69,7 @@ function RSVPButton({ currentRSVP, onRSVP }: {
         variant={currentStatus === 'tentative' ? 'default' : 'outline'}
         size="sm"
         className="flex items-center gap-2"
+        disabled={isSubmitting}
       >
         <Clock4 className="h-4 w-4" />
         Maybe
@@ -69,6 +79,7 @@ function RSVPButton({ currentRSVP, onRSVP }: {
         variant={currentStatus === 'declined' ? 'destructive' : 'outline'}
         size="sm"
         className="flex items-center gap-2"
+        disabled={isSubmitting}
       >
         <XCircle className="h-4 w-4" />
         Can't Go
@@ -135,9 +146,12 @@ function ReactionButton({ reactions, onReact }: {
 export function EventPage({ kind, pubkey, identifier }: EventPageProps) {
   const { data: event, isLoading, error } = useCalendarEvent(kind, pubkey, identifier);
   const { user } = useCurrentUser();
-  const { mutate: createEvent } = useNostrPublish();
+  const { mutateAsync: createEvent } = useNostrPublish();
   const [isRSVPing, setIsRSVPing] = useState(false);
   const [isReacting, setIsReacting] = useState(false);
+  
+  // Optimistic RSVP state for immediate UI feedback
+  const [optimisticRSVP, setOptimisticRSVP] = useState<'accepted' | 'declined' | 'tentative' | null>(null);
 
   // Create event coordinates for RSVP and reaction queries
   const eventCoordinates = event ? `${event.kind}:${event.pubkey}:${identifier}` : '';
@@ -146,8 +160,54 @@ export function EventPage({ kind, pubkey, identifier }: EventPageProps) {
   const { data: reactions = [] } = useEventReactions(event?.id, eventCoordinates);
   const author = useAuthor(event?.pubkey || '');
 
-  // Find current user's RSVP
-  const currentRSVP: RSVP | null = user ? rsvps.find(rsvp => rsvp.author === user.pubkey) || null : null;
+  // Find current user's RSVP from server data
+  const serverRSVP: RSVP | null = user ? rsvps.find(rsvp => rsvp.author === user.pubkey) || null : null;
+  
+  // Clear optimistic state when server data updates
+  const currentRSVP = useMemo(() => {
+    if (serverRSVP && optimisticRSVP && serverRSVP.status === optimisticRSVP) {
+      // Server caught up with our optimistic update, clear optimistic state
+      setOptimisticRSVP(null);
+    }
+    return serverRSVP;
+  }, [serverRSVP, optimisticRSVP]);
+
+  // Count attendees by status with optimistic updates
+  const accepted = useMemo(() => {
+    let count = rsvps.filter(rsvp => rsvp.status === 'accepted').length;
+    // Adjust count based on optimistic state
+    if (user && optimisticRSVP) {
+      const hadAccepted = serverRSVP?.status === 'accepted';
+      const willAccept = optimisticRSVP === 'accepted';
+      if (!hadAccepted && willAccept) count++;
+      if (hadAccepted && !willAccept) count--;
+    }
+    return count;
+  }, [rsvps, user, optimisticRSVP, serverRSVP]);
+
+  const tentative = useMemo(() => {
+    let count = rsvps.filter(rsvp => rsvp.status === 'tentative').length;
+    // Adjust count based on optimistic state
+    if (user && optimisticRSVP) {
+      const hadTentative = serverRSVP?.status === 'tentative';
+      const willBeTentative = optimisticRSVP === 'tentative';
+      if (!hadTentative && willBeTentative) count++;
+      if (hadTentative && !willBeTentative) count--;
+    }
+    return count;
+  }, [rsvps, user, optimisticRSVP, serverRSVP]);
+
+  const declined = useMemo(() => {
+    let count = rsvps.filter(rsvp => rsvp.status === 'declined').length;
+    // Adjust count based on optimistic state
+    if (user && optimisticRSVP) {
+      const hadDeclined = serverRSVP?.status === 'declined';
+      const willDecline = optimisticRSVP === 'declined';
+      if (!hadDeclined && willDecline) count++;
+      if (hadDeclined && !willDecline) count--;
+    }
+    return count;
+  }, [rsvps, user, optimisticRSVP, serverRSVP]);
 
   // Extract event data for SEO (needs to be done before conditional returns)
   const title = event?.tags.find(([name]) => name === 'title')?.[1] || 'Event';
@@ -163,6 +223,8 @@ export function EventPage({ kind, pubkey, identifier }: EventPageProps) {
   const handleRSVP = async (status: 'accepted' | 'declined' | 'tentative') => {
     if (!user || !event || isRSVPing) return;
     
+    // Immediately update UI with optimistic state
+    setOptimisticRSVP(status);
     setIsRSVPing(true);
     
     try {
@@ -182,11 +244,19 @@ export function EventPage({ kind, pubkey, identifier }: EventPageProps) {
         tags.push(['fb', 'busy']);
       }
 
-      createEvent({
+      // Await the event creation to ensure it's sent to relays
+      await createEvent({
         kind: 31925,
         content: '',
         tags,
       });
+      
+      console.log(`RSVP sent successfully: ${status}`);
+    } catch (error) {
+      // On error, revert the optimistic update
+      console.error('RSVP failed:', error);
+      setOptimisticRSVP(null);
+      // Optionally show an error toast here
     } finally {
       setIsRSVPing(false);
     }
@@ -209,11 +279,15 @@ export function EventPage({ kind, pubkey, identifier }: EventPageProps) {
         tags.push(['a', eventCoordinates]);
       }
 
-      createEvent({
+      await createEvent({
         kind: 7,
         content,
         tags,
       });
+      
+      console.log(`Reaction sent successfully: ${content}`);
+    } catch (error) {
+      console.error('Reaction failed:', error);
     } finally {
       setIsReacting(false);
     }
@@ -314,11 +388,6 @@ export function EventPage({ kind, pubkey, identifier }: EventPageProps) {
     }
   }
 
-  // Count attendees by status
-  const accepted = rsvps.filter(rsvp => rsvp.status === 'accepted').length;
-  const tentative = rsvps.filter(rsvp => rsvp.status === 'tentative').length;
-  const declined = rsvps.filter(rsvp => rsvp.status === 'declined').length;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-secondary via-background to-accent/20">
       <Navigation />
@@ -393,11 +462,14 @@ export function EventPage({ kind, pubkey, identifier }: EventPageProps) {
                   <h3 className="font-semibold mb-3">Will you attend?</h3>
                   <RSVPButton 
                     currentRSVP={currentRSVP} 
+                    optimisticStatus={optimisticRSVP}
+                    isSubmitting={isRSVPing}
                     onRSVP={handleRSVP} 
                   />
-                  {currentRSVP && (
+                  {(currentRSVP || optimisticRSVP) && (
                     <p className="text-sm text-muted-foreground mt-2">
-                      You RSVP'd: <strong>{currentRSVP.status}</strong>
+                      You RSVP'd: <strong>{optimisticRSVP || currentRSVP?.status}</strong>
+                      {isRSVPing && <span className="ml-2 text-xs">(saving...)</span>}
                     </p>
                   )}
                 </div>
