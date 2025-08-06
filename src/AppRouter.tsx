@@ -18,7 +18,7 @@ const Donate = lazy(() => import("./pages/Donate"));
 
 export function AppRouter() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/bitcoincommunitysites">
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<Index />} />
