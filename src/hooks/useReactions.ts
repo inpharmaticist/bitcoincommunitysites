@@ -11,6 +11,7 @@ export interface ReactionSummary {
   dislikes: number;
   emojis: Record<string, number>;
   userReaction?: string; // User's current reaction ('+', '-', or emoji)
+  optimisticUserReaction?: string; // Optimistic reaction for immediate UI feedback
 }
 
 /**
@@ -48,6 +49,8 @@ export function useReactions(eventId: string, authorPubkey: string) {
           // Check if this is the current user's reaction
           if (user && reaction.pubkey === user.pubkey) {
             summary.userReaction = content;
+            // Clear any optimistic reaction since we now have server data
+            summary.optimisticUserReaction = undefined;
           }
           
           // Categorize reaction

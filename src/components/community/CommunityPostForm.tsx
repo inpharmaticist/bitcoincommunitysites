@@ -10,6 +10,7 @@ import { useCommunityActions } from '@/hooks/useCommunityActions';
 import { useToast } from '@/hooks/useToast';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { genUserName } from '@/lib/genUserName';
+import { useOptimisticCommunity } from '@/hooks/useOptimisticCommunity';
 
 interface CommunityPostFormProps {
   communityId: string;
@@ -21,6 +22,7 @@ export function CommunityPostForm({ communityId }: CommunityPostFormProps) {
   const author = useAuthor(user?.pubkey || '');
   const { publishPost } = useCommunityActions(communityId);
   const { toast } = useToast();
+  const { addOptimisticPost } = useOptimisticCommunity(communityId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,17 +36,29 @@ export function CommunityPostForm({ communityId }: CommunityPostFormProps) {
       return;
     }
 
+    // Add optimistic post immediately
+    addOptimisticPost(content.trim());
+    
+    // Clear form immediately for better UX
+    const contentToPost = content.trim();
+    setContent('');
+
     try {
       await publishPost.mutateAsync({ 
-        content: content.trim(),
+        content: contentToPost,
         communityId,
       });
-      setContent('');
+      
       toast({
         title: "Post published!",
         description: "Your post has been shared with the community.",
       });
-    } catch {
+    } catch (error) {
+      console.error('Post error:', error);
+      
+      // Restore form content on error
+      setContent(contentToPost);
+      
       toast({
         title: "Error",
         description: "Failed to publish post. Please try again.",

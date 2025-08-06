@@ -8,6 +8,7 @@ import { useCommunity } from '@/hooks/useCommunity';
 import { isModerator } from '@/lib/community';
 import { CommunityPost } from './CommunityPost';
 import { RelaySelector } from '@/components/RelaySelector';
+import { useOptimisticCommunity, type OptimisticPost } from '@/hooks/useOptimisticCommunity';
 
 interface CommunityFeedProps {
   communityId: string;
@@ -20,6 +21,7 @@ export function CommunityFeed({ communityId }: CommunityFeedProps) {
   const { data: moderationPosts } = useModerationPosts(communityId);
   const { data: pinnedPosts } = usePinnedPosts(communityId);
   const { data: memberLists } = useMemberLists(communityId);
+  const { getMergedPosts } = useOptimisticCommunity(communityId);
   
   // Check if current user is a moderator
   const isUserModerator = user && community ? isModerator(user.pubkey, community) : false;
@@ -108,9 +110,12 @@ export function CommunityFeed({ communityId }: CommunityFeedProps) {
     );
   }
 
+  // Get merged posts (server + optimistic)
+  const mergedPosts = getMergedPosts(posts);
+
   // For empty state, check if we have any content to show
   const hasContentToShow = () => {
-    if (!posts || posts.length === 0) return false;
+    if (!mergedPosts || mergedPosts.length === 0) return false;
     
     if (isUserModerator) {
       // Moderators can see all posts
@@ -118,10 +123,10 @@ export function CommunityFeed({ communityId }: CommunityFeedProps) {
     }
     
     // Non-moderators can only see approved posts
-    return posts.some(post => isPostApproved(post));
+    return mergedPosts.some(post => (post as OptimisticPost).isOptimistic || isPostApproved(post));
   };
 
-  if (!posts || !hasContentToShow()) {
+  if (!mergedPosts || !hasContentToShow()) {
     return (
       <div className="space-y-4">
         <Card className="border-dashed">
@@ -150,12 +155,12 @@ export function CommunityFeed({ communityId }: CommunityFeedProps) {
   return (
     <div className="space-y-4">
       {/* Posts Feed */}
-      {posts.map((post) => {
+      {mergedPosts.map((post) => {
         const moderationStatus = moderationStatusMap.get(post.id);
         const isPinned = pinnedPostIds.has(post.id);
-        const postApproved = isPostApproved(post);
+        const postApproved = (post as OptimisticPost).isOptimistic || isPostApproved(post);
         
-        // For non-moderators, hide unapproved posts
+        // For non-moderators, hide unapproved posts (but always show optimistic ones)
         if (!isUserModerator && !postApproved) {
           return null;
         }

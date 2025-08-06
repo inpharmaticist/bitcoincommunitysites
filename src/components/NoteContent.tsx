@@ -45,7 +45,7 @@ export function NoteContent({
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-500 hover:underline"
+            className="text-blue-500 hover:underline break-all"
           >
             {url}
           </a>
@@ -67,7 +67,7 @@ export function NoteContent({
               <Link 
                 key={`nostr-${keyCounter++}`}
                 to={`/${nostrId}`}
-                className="text-blue-500 hover:underline"
+                className="text-blue-500 hover:underline break-all"
               >
                 {fullMatch}
               </Link>
@@ -108,7 +108,7 @@ export function NoteContent({
   }, [event]);
 
   return (
-    <div className={cn("whitespace-pre-wrap break-words", className)}>
+    <div className={cn("whitespace-pre-wrap break-words overflow-wrap-anywhere", className)}>
       {content.length > 0 ? content : event.content}
     </div>
   );

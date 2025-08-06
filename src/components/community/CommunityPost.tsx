@@ -34,9 +34,11 @@ import { useToast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
 import { isModerator } from '@/lib/community';
 import { NoteContent } from '@/components/NoteContent';
+import { ReactionsBar } from './ReactionsBar';
+import { useOptimisticCommunity, type OptimisticPost } from '@/hooks/useOptimisticCommunity';
 
 interface CommunityPostProps {
-  event: NostrEvent;
+  event: NostrEvent | OptimisticPost;
   communityId: string;
   showReplies?: boolean;
   isReply?: boolean;
@@ -71,6 +73,7 @@ export function CommunityPost({
   const { approvePost, removePost, pinPost, unpinPost } = useModerationActions(communityId);
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
+  const { addOptimisticReply, getMergedReplies } = useOptimisticCommunity(communityId);
   
   // Check if current user is a moderator
   const isUserModerator = user && community ? isModerator(user.pubkey, community) : false;
@@ -117,6 +120,9 @@ export function CommunityPost({
 
   // Check if this specific post is pinned
   const isThisPostPinned = isPinned || (pinnedPosts?.some(p => p.eventId === event.id) ?? false);
+  
+  // Check if this is an optimistic post
+  const isOptimisticPost = !!(event as OptimisticPost).isOptimistic;
 
   const metadata = author.data?.metadata;
   const displayName = metadata?.name ?? genUserName(event.pubkey);
@@ -138,20 +144,33 @@ export function CommunityPost({
       return;
     }
 
+    // Add optimistic reply immediately
+    addOptimisticReply(replyContent.trim(), event.id, event.pubkey);
+    
+    // Clear form immediately for better UX
+    const contentToPost = replyContent.trim();
+    setReplyContent('');
+    setShowReplyForm(false);
+
     try {
       await publishReply.mutateAsync({
-        content: replyContent.trim(),
+        content: contentToPost,
         communityId,
         parentEventId: event.id,
         parentAuthorPubkey: event.pubkey,
       });
-      setReplyContent('');
-      setShowReplyForm(false);
+      
       toast({
         title: "Reply posted!",
         description: "Your reply has been published.",
       });
-    } catch {
+    } catch (error) {
+      console.error('Reply error:', error);
+      
+      // Restore form state on error
+      setReplyContent(contentToPost);
+      setShowReplyForm(true);
+      
       toast({
         title: "Error",
         description: "Failed to post reply. Please try again.",
@@ -310,7 +329,7 @@ export function CommunityPost({
                     Removed
                   </Badge>
                 )}
-                {!isApproved && isUserModerator && (
+                {!isApproved && isUserModerator && !isOptimisticPost && (
                   <Badge variant="outline" className="text-xs">
                     Pending Approval
                   </Badge>
@@ -393,11 +412,13 @@ export function CommunityPost({
               )}
             </div>
             
-            <div className="text-sm break-words">
+            <div className="text-sm break-words overflow-hidden">
               <NoteContent event={event} />
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center justify-between">
+              <ReactionsBar event={event} communityId={communityId} />
+              
               <Button
                 variant="ghost"
                 size="sm"
@@ -461,10 +482,13 @@ export function CommunityPost({
             )}
             
             {/* Replies */}
-            {showReplies && replies.length > 0 && (
-              <div className="space-y-3 pt-3">
-                <Separator />
-                {replies.map((reply) => {
+            {showReplies && (
+              (() => {
+                const mergedReplies = getMergedReplies(event.id, replies);
+                return mergedReplies.length > 0 && (
+                  <div className="space-y-3 pt-3">
+                    <Separator />
+                    {mergedReplies.map((reply) => {
                   const replyModerationStatus = moderationStatusMap.get(reply.id);
                   const replyApproved = isPostApproved(reply);
                   const replyRemoved = replyModerationStatus?.isRemoved ?? false;
@@ -487,8 +511,10 @@ export function CommunityPost({
                       isPinned={replyPinned}
                     />
                   );
-                }).filter(Boolean)}
-              </div>
+                    }).filter(Boolean)}
+                  </div>
+                );
+              })()
             )}
           </div>
         </div>
